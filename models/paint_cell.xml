@@ -1,0 +1,239 @@
+<!--
+  Robotic Car Painting Cell  (MuJoCo MJCF)
+  Author : Vidya Sagar
+
+  Units: metres, radians internally (angles in this file are degrees).
+  World frame: origin = centre of the paint booth floor, +X = conveyor direction
+  (entry -> exit), +Z = up.
+
+  Layout (follows the Yuktii reference drawing, 12 m x 8 m building):
+    entry zone   x in [-6,-4]   (2 m)
+    paint booth  x in [-4, 4]   (8 m) , y in [-2.5, 2.5] (5 m)
+    exit zone    x in [ 4, 6]   (2 m)
+    service rooms (paint mixing / control / maintenance) along +Y, 2.5 m deep
+
+  Robot: 6-axis industrial arm with ABB IRB 6700-150/3.20 class kinematics
+         (approximate public dimensions), mounted INVERTED on a 2-axis overhead
+         gantry: X travel 6.4 m + vertical lift 1.4 m  -> 8 axes total.
+  Car  : 4800 x 1900 x 1600 mm body-in-white built from primitives, on a
+         conveyor skid (slide joint along X).
+
+  Geom groups:  0 = cell structure, 1 = robot & car trim (not painted),
+                2 = paintable car panels, 3 = glass openings (masked, not painted)
+  Collision bits: robot geoms contype=1/conaffinity=0, environment
+                contype=0/conaffinity=1  ->  only robot-vs-environment contacts.
+-->
+<mujoco model="car_paint_cell">
+  <compiler angle="degree" autolimits="true"/>
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+
+  <visual>
+    <global offwidth="1920" offheight="1080" azimuth="135" elevation="-25"/>
+    <quality shadowsize="4096"/>
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.5 0.5 0.5" specular="0.1 0.1 0.1"/>
+    <map znear="0.01" zfar="100"/>
+  </visual>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="gradient" rgb1="0.75 0.82 0.9" rgb2="0.2 0.25 0.3" width="512" height="512"/>
+    <texture name="floor_tex" type="2d" builtin="checker" rgb1="0.55 0.57 0.6" rgb2="0.5 0.52 0.55" width="512" height="512"/>
+    <material name="floor_mat" texture="floor_tex" texrepeat="12 8" reflectance="0.08"/>
+    <material name="wall_mat"   rgba="0.85 0.88 0.92 0.18"/>
+    <material name="room_mat"   rgba="0.75 0.72 0.65 0.35"/>
+    <material name="steel"      rgba="0.45 0.47 0.5 1" specular="0.6" shininess="0.6"/>
+    <material name="yellow"     rgba="0.95 0.65 0.05 1" specular="0.4"/>
+    <material name="robot_org"  rgba="0.92 0.42 0.08 1" specular="0.5" shininess="0.5"/>
+    <material name="robot_dark" rgba="0.18 0.18 0.2 1"/>
+    <material name="primer"     rgba="0.78 0.78 0.76 1" specular="0.3" shininess="0.3"/>
+    <material name="glass"      rgba="0.12 0.16 0.2 0.85" specular="0.9" shininess="0.9"/>
+    <material name="rubber"     rgba="0.05 0.05 0.05 1"/>
+    <material name="conveyor"   rgba="0.25 0.27 0.3 1"/>
+  </asset>
+
+  <default>
+    <default class="env">
+      <geom contype="0" conaffinity="1" group="0"/>
+    </default>
+    <default class="visual_only">
+      <geom contype="0" conaffinity="0" group="0"/>
+    </default>
+    <default class="panel">
+      <geom type="box" contype="0" conaffinity="1" group="2" material="primer"/>
+    </default>
+    <default class="glass">
+      <geom type="box" contype="0" conaffinity="1" group="3" material="glass"/>
+    </default>
+    <!-- margin = 30 mm: MuJoCo reports a "contact" as soon as a robot link comes
+         within 30 mm of an obstacle, so a contact-free path keeps >= 30 mm clearance -->
+    <default class="robot">
+      <geom contype="1" conaffinity="0" group="1" material="robot_org" margin="0.03"/>
+      <joint damping="50" armature="1"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <light name="sun" pos="0 -3 9" dir="0.1 0.3 -1" directional="true" castshadow="true" diffuse="0.6 0.6 0.6"/>
+    <light name="booth_l" pos="-2 0 5.3" dir="0 0 -1" diffuse="0.35 0.35 0.35" castshadow="false"/>
+    <light name="booth_r" pos=" 2 0 5.3" dir="0 0 -1" diffuse="0.35 0.35 0.35" castshadow="false"/>
+
+    <!-- ========================= BUILDING ========================= -->
+    <geom name="floor" class="env" type="plane" pos="0 1.5 0" size="6.2 4.2 0.1" material="floor_mat"/>
+
+    <!-- outer walls of the production hall (transparent so the camera sees in) -->
+    <geom name="wall_south" class="env" type="box" pos="0 -2.55 2.75" size="6.1 0.05 2.75" material="wall_mat"/>
+    <geom name="wall_north" class="env" type="box" pos="0  5.55 2.75" size="6.1 0.05 2.75" material="wall_mat"/>
+    <!-- end walls with car doors (opening 2.5 m wide, 2.2 m high) -->
+    <geom class="env" type="box" pos="-6.05 -1.9 2.75" size="0.05 0.65 2.75" material="wall_mat"/>
+    <geom class="env" type="box" pos="-6.05  3.4 2.75" size="0.05 2.15 2.75" material="wall_mat"/>
+    <geom class="env" type="box" pos="-6.05  0.0 3.85" size="0.05 1.25 1.65" material="wall_mat"/>
+    <geom class="env" type="box" pos=" 6.05 -1.9 2.75" size="0.05 0.65 2.75" material="wall_mat"/>
+    <geom class="env" type="box" pos=" 6.05  3.4 2.75" size="0.05 2.15 2.75" material="wall_mat"/>
+    <geom class="env" type="box" pos=" 6.05  0.0 3.85" size="0.05 1.25 1.65" material="wall_mat"/>
+
+    <!-- booth partition walls at x = +-4 (car passes through the opening) -->
+    <geom name="part_in_s"  class="env" type="box" pos="-4 -1.9 2.75"  size="0.05 0.6 2.75" material="wall_mat"/>
+    <geom name="part_in_n"  class="env" type="box" pos="-4  1.9 2.75"  size="0.05 0.6 2.75" material="wall_mat"/>
+    <geom name="part_in_t"  class="env" type="box" pos="-4  0.0 3.85"  size="0.05 1.3 1.65" material="wall_mat"/>
+    <geom name="part_out_s" class="env" type="box" pos=" 4 -1.9 2.75"  size="0.05 0.6 2.75" material="wall_mat"/>
+    <geom name="part_out_n" class="env" type="box" pos=" 4  1.9 2.75"  size="0.05 0.6 2.75" material="wall_mat"/>
+    <geom name="part_out_t" class="env" type="box" pos=" 4  0.0 3.85"  size="0.05 1.3 1.65" material="wall_mat"/>
+    <!-- booth north wall (separates booth from service corridor) -->
+    <geom name="booth_north" class="env" type="box" pos="0 2.55 2.75" size="6.1 0.05 2.75" material="wall_mat"/>
+
+    <!-- service rooms along +Y (paint mixing 3 m, control 2.5 m, maintenance 4 m) -->
+    <geom class="visual_only" type="box" pos="-3.0 4.3 1.2" size="1.45 1.15 1.2" material="room_mat"/>
+    <geom class="visual_only" type="box" pos=" 0.0 4.3 1.2" size="1.2 1.15 1.2"  material="room_mat"/>
+    <geom class="visual_only" type="box" pos=" 3.5 4.3 1.2" size="1.95 1.15 1.2" material="room_mat"/>
+    <!-- paint supply drums in mixing room -->
+    <geom class="visual_only" type="cylinder" pos="-3.6 4.0 0.45" size="0.3 0.45" rgba="0.1 0.25 0.7 1"/>
+    <geom class="visual_only" type="cylinder" pos="-2.8 4.0 0.45" size="0.3 0.45" rgba="0.7 0.1 0.1 1"/>
+    <!-- control desk -->
+    <geom class="visual_only" type="box" pos="0 4.6 0.45" size="0.8 0.3 0.45" rgba="0.2 0.2 0.25 1"/>
+
+    <!-- conveyor skid line along the whole hall -->
+    <geom class="visual_only" type="box" pos="0 -0.55 0.04" size="6.0 0.12 0.04" material="conveyor"/>
+    <geom class="visual_only" type="box" pos="0  0.55 0.04" size="6.0 0.12 0.04" material="conveyor"/>
+    <!-- yellow safety lines on booth floor -->
+    <geom class="visual_only" type="box" pos="0 -1.6 0.002" size="3.9 0.04 0.002" material="yellow"/>
+    <geom class="visual_only" type="box" pos="0  1.6 0.002" size="3.9 0.04 0.002" material="yellow"/>
+
+    <!-- ========================= OVERHEAD GANTRY ========================= -->
+    <!-- portal columns at x = +-3.9 -->
+    <geom name="col_1" class="env" type="box" pos="-3.85 -2.3 2.5" size="0.1 0.1 2.5" material="steel"/>
+    <geom name="col_2" class="env" type="box" pos="-3.85  2.3 2.5" size="0.1 0.1 2.5" material="steel"/>
+    <geom name="col_3" class="env" type="box" pos=" 3.85 -2.3 2.5" size="0.1 0.1 2.5" material="steel"/>
+    <geom name="col_4" class="env" type="box" pos=" 3.85  2.3 2.5" size="0.1 0.1 2.5" material="steel"/>
+    <geom class="visual_only" type="box" pos="-3.85 0 4.9" size="0.1 2.4 0.1" material="steel"/>
+    <geom class="visual_only" type="box" pos=" 3.85 0 4.9" size="0.1 2.4 0.1" material="steel"/>
+    <!-- linear rail (X axis of the gantry) -->
+    <geom name="rail_beam" class="visual_only" type="box" pos="0 0 4.85" size="3.95 0.15 0.1" material="yellow"/>
+
+    <!-- ========================= ROBOT ========================= -->
+    <!-- 2-axis overhead gantry: X travel (rail) + vertical Z lift (telescopic mast) -->
+    <body name="carriage" pos="0 0 4.65" childclass="robot">
+      <joint name="rail" type="slide" axis="1 0 0" range="-3.2 3.2"/>
+      <geom name="carriage" type="box" size="0.35 0.3 0.1" material="robot_dark" contype="0"/>
+      <geom name="mast_sleeve" type="box" pos="0 0 -0.35" size="0.2 0.2 0.25" material="steel" contype="0"/>
+
+      <body name="lift" pos="0 0 -0.1">
+      <joint name="lift" type="slide" axis="0 0 1" range="-1.4 0"/>
+      <geom name="mast" type="box" pos="0 0 0.6" size="0.15 0.15 0.65" material="yellow" contype="0"/>
+
+      <!-- base frame rotated 180 deg about X: local +Z points DOWN in the world -->
+      <body name="base" pos="0 0 -0.1" quat="0 1 0 0">
+        <geom name="base_plate" type="cylinder" pos="0 0 0.06" size="0.36 0.06" material="robot_dark" contype="0"/>
+
+        <body name="link1">
+          <joint name="j1" axis="0 0 1" range="-170 170"/>
+          <geom name="l1_body" type="capsule" fromto="0 0 0.2 0 0 0.55" size="0.3"/>
+          <geom name="l1_shoulder" type="capsule" fromto="0.32 -0.25 0.78 0.32 0.25 0.78" size="0.2"/>
+
+          <body name="link2" pos="0.32 0 0.78">
+            <joint name="j2" axis="0 1 0" range="-90 90"/>
+            <geom name="upper_arm" type="capsule" fromto="0 0 0 0 0 1.28" size="0.15"/>
+
+            <body name="link3" pos="0 0 1.28">
+              <joint name="j3" axis="0 1 0" range="-180 100"/>
+              <geom name="elbow" type="capsule" fromto="0 -0.2 0 0 0.2 0" size="0.17"/>
+              <geom name="elbow_up" type="capsule" fromto="0 0 0 0.35 0 0.2" size="0.15"/>
+
+              <body name="link4" pos="0.4 0 0.2">
+                <joint name="j4" axis="1 0 0" range="-270 270"/>
+                <geom name="forearm" type="capsule" fromto="0 0 0 1.05 0 0" size="0.11"/>
+
+                <body name="link5" pos="1.19 0 0">
+                  <joint name="j5" axis="0 1 0" range="-125 125"/>
+                  <geom name="wrist" type="capsule" fromto="0 -0.1 0 0 0.1 0" size="0.09" material="robot_dark"/>
+
+                  <body name="link6">
+                    <joint name="j6" axis="1 0 0" range="-360 360"/>
+                    <geom name="flange" type="cylinder" fromto="0.06 0 0 0.2 0 0" size="0.07" material="robot_dark"/>
+
+                    <!-- ===== rotary-bell / spray gun end-effector ===== -->
+                    <body name="spray_gun" pos="0.2 0 0">
+                      <geom name="gun_body" type="capsule" fromto="0.04 0 0 0.24 0 0" size="0.06" rgba="0.85 0.85 0.88 1"/>
+                      <geom name="gun_bell" type="cylinder" fromto="0.26 0 0 0.33 0 0" size="0.045" rgba="0.6 0.6 0.65 1"/>
+                      <geom name="gun_hose" type="capsule" fromto="0.05 0 0.06 0.05 0 0.15" size="0.02" rgba="0.1 0.1 0.1 1" contype="0"/>
+                      <!-- Tool Centre Point: nozzle tip, local +X = spray direction -->
+                      <site name="tcp" pos="0.35 0 0" size="0.02" rgba="1 0 0 1"/>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      </body>
+    </body>
+
+    <!-- ========================= CAR BODY on conveyor skid ========================= -->
+    <!-- Length 4.8 m (x), width 1.9 m (y), height 1.6 m (z). Front of car = +X -->
+    <body name="car" pos="0 0 0">
+      <joint name="conveyor" type="slide" axis="1 0 0" range="-8 8" damping="1000"/>
+      <!-- skid -->
+      <geom class="visual_only" type="box" pos="0 0 0.1" size="2.0 0.6 0.02" rgba="0.3 0.3 0.32 1"/>
+
+      <!-- paintable panels (group 2) -->
+      <geom name="lower_body"   class="panel" pos="0 0 0.675"     size="2.32 0.95 0.375"/>
+      <geom name="cabin"        class="panel" pos="-0.25 0 1.325" size="1.15 0.8 0.275"/>
+      <geom name="bumper_front" class="panel" pos=" 2.36 0 0.47"  size="0.04 0.93 0.17"/>
+      <geom name="bumper_rear"  class="panel" pos="-2.36 0 0.47"  size="0.04 0.93 0.17"/>
+
+      <!-- glass openings (group 3) - masked, the robot never sprays them -->
+      <geom name="windshield"  class="glass" pos=" 1.2 0 1.33"  size="0.41 0.78 0.04" euler="0 42.5 0"/>
+      <geom name="rear_window" class="glass" pos="-1.65 0 1.33" size="0.37 0.78 0.04" euler="0 -47.7 0"/>
+      <geom name="window_l"    class="glass" pos="-0.25 -0.805 1.33" size="0.95 0.01 0.19"/>
+      <geom name="window_r"    class="glass" pos="-0.25  0.805 1.33" size="0.95 0.01 0.19"/>
+
+      <!-- trim (group 1): wheels, lights - not painted -->
+      <geom name="wheel_fl" type="cylinder" pos=" 1.5  0.78 0.33" size="0.33 0.12" euler="90 0 0" material="rubber" contype="0" conaffinity="1" group="1"/>
+      <geom name="wheel_fr" type="cylinder" pos=" 1.5 -0.78 0.33" size="0.33 0.12" euler="90 0 0" material="rubber" contype="0" conaffinity="1" group="1"/>
+      <geom name="wheel_rl" type="cylinder" pos="-1.5  0.78 0.33" size="0.33 0.12" euler="90 0 0" material="rubber" contype="0" conaffinity="1" group="1"/>
+      <geom name="wheel_rr" type="cylinder" pos="-1.5 -0.78 0.33" size="0.33 0.12" euler="90 0 0" material="rubber" contype="0" conaffinity="1" group="1"/>
+      <geom class="visual_only" type="box" pos=" 2.41  0.65 0.88" size="0.01 0.2 0.07" rgba="1 1 0.85 1"/>
+      <geom class="visual_only" type="box" pos=" 2.41 -0.65 0.88" size="0.01 0.2 0.07" rgba="1 1 0.85 1"/>
+      <geom class="visual_only" type="box" pos="-2.41  0.65 0.88" size="0.01 0.2 0.07" rgba="0.8 0.05 0.05 1"/>
+      <geom class="visual_only" type="box" pos="-2.41 -0.65 0.88" size="0.01 0.2 0.07" rgba="0.8 0.05 0.05 1"/>
+    </body>
+
+    <!-- ========================= CAMERAS ========================= -->
+    <camera name="overview"  pos="7.5 -7.5 7.0" xyaxes="0.707 0.707 0 -0.45 0.45 0.77"/>
+    <camera name="side"      pos="0 -2.45 1.6"  xyaxes="1 0 0 0 0.45 0.89" fovy="100"/>
+    <camera name="top"       pos="0 0 13"       xyaxes="1 0 0 0 1 0"/>
+  </worldbody>
+
+  <!-- self-collision pairs (non-adjacent robot links) -->
+  <contact>
+    <pair geom1="l1_body"     geom2="forearm"  margin="0.03"/>
+    <pair geom1="l1_body"     geom2="gun_body" margin="0.03"/>
+    <pair geom1="l1_body"     geom2="gun_bell" margin="0.03"/>
+    <pair geom1="l1_shoulder" geom2="forearm"  margin="0.03"/>
+    <pair geom1="l1_shoulder" geom2="gun_body" margin="0.03"/>
+    <pair geom1="l1_shoulder" geom2="gun_bell" margin="0.03"/>
+    <pair geom1="l1_shoulder" geom2="wrist"    margin="0.03"/>
+    <pair geom1="upper_arm"   geom2="gun_body" margin="0.03"/>
+    <pair geom1="upper_arm"   geom2="gun_bell" margin="0.03"/>
+    <pair geom1="upper_arm"   geom2="wrist"    margin="0.03"/>
+  </contact>
+</mujoco>

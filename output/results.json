@@ -1,0 +1,119 @@
+{
+  "cycle_time_s": 433.6,
+  "painting_time_s": 315.9,
+  "conveyor_time_s": 26.0,
+  "transfer_time_s": 91.7,
+  "paint_speed_m_s": 0.4,
+  "standoff_m": 0.25,
+  "fan_width_m": 0.3,
+  "row_pitch_m": 0.15,
+  "surfaces": {
+    "roof": {
+      "strokes": 11,
+      "path_length_m": 26.95,
+      "max_ik_error_mm": 0.49,
+      "samples_slowed": 0
+    },
+    "hood": {
+      "strokes": 6,
+      "path_length_m": 12.15,
+      "max_ik_error_mm": 0.5,
+      "samples_slowed": 0
+    },
+    "front": {
+      "strokes": 5,
+      "path_length_m": 9.75,
+      "max_ik_error_mm": 0.49,
+      "samples_slowed": 0
+    },
+    "right_side": {
+      "strokes": 11,
+      "path_length_m": 30.83,
+      "max_ik_error_mm": 0.35,
+      "samples_slowed": 0
+    },
+    "rear": {
+      "strokes": 5,
+      "path_length_m": 9.75,
+      "max_ik_error_mm": 0.45,
+      "samples_slowed": 0
+    },
+    "left_side": {
+      "strokes": 11,
+      "path_length_m": 30.83,
+      "max_ik_error_mm": 0.37,
+      "samples_slowed": 0
+    },
+    "trunk": {
+      "strokes": 3,
+      "path_length_m": 6.07,
+      "max_ik_error_mm": 0.5,
+      "samples_slowed": 0
+    }
+  },
+  "coverage_pct": {
+    "roof": 98.7,
+    "hood": 99.1,
+    "trunk": 98.2,
+    "left_side": 95.4,
+    "right_side": 95.4,
+    "front": 99.1,
+    "rear": 99.1
+  },
+  "total_coverage_pct": 97.2,
+  "film_mean_rel": {
+    "roof": 1.001,
+    "hood": 1.025,
+    "trunk": 0.909,
+    "left_side": 0.929,
+    "right_side": 0.929,
+    "front": 0.87,
+    "rear": 0.87
+  },
+  "film_cv": {
+    "roof": 0.108,
+    "hood": 0.123,
+    "trunk": 0.146,
+    "left_side": 0.187,
+    "right_side": 0.187,
+    "front": 0.136,
+    "rear": 0.136
+  },
+  "film_within_25pct": {
+    "roof": 93.7,
+    "hood": 93.1,
+    "trunk": 86.1,
+    "left_side": 84.2,
+    "right_side": 84.2,
+    "front": 81.4,
+    "rear": 81.4
+  },
+  "min_clearance_mm": 37.2,
+  "min_clearance_pair": [
+    "elbow_up",
+    "cabin"
+  ],
+  "min_clearance_time_s": 297.63,
+  "samples_below_50mm": 50,
+  "samples_in_contact": 0,
+  "peak_joint_speed_ratio": {
+    "rail": 1.0,
+    "lift": 1.0,
+    "j1": 1.0,
+    "j2": 1.0,
+    "j3": 1.0,
+    "j4": 0.461,
+    "j5": 0.88,
+    "j6": 0.361
+  },
+  "rejected_motions": [
+    "move to right_side: direct joint move collides (gun_bell vs bumper_front) -> rejected, re-planned with RRT-Connect (3 via points)",
+    "move to rear: direct joint move collides (floor vs gun_bell) -> rejected, re-planned with RRT-Connect (2 via points)",
+    "move to left_side: direct joint move collides (floor vs gun_bell) -> rejected, re-planned with RRT-Connect (3 via points)",
+    "move to trunk: direct joint move collides (forearm vs windshield) -> rejected, re-planned with RRT-Connect (2 via points)",
+    "return to park: direct joint move collides (gun_bell vs rear_window) -> rejected, re-planned as retract / direct / approach"
+  ],
+  "mean_standoff_mm": 250.1,
+  "standoff_std_mm": 2.32,
+  "overspray_m": 0.1
+}

@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+output/*.mp4
+output/program.npz
+output/rejected.npz
